@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { AuthContext } from "./AuthContext";
 import { toast } from "react-toastify";
-import axios from "axios";
 
 export const ChatContext = createContext();
 
@@ -35,9 +34,23 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // --- THIS FUNCTION IS NOW CORRECTED ---
   const sendMessage = async (messageData) => {
+    if (!socket) {
+      toast.error("Socket not connected.");
+      return;
+    }
+    
     try {
+      // This sends the message instantly over the WebSocket connection
+      socket.emit("sendMessage", {
+        ...messageData,
+        receiverId: selectedUser._id,
+      });
+      
+      // This still saves the message to your database
       const { data } = await axios.post(`/api/messages/send/${selectedUser._id}`, messageData);
+      
       if (data.success) {
         setMessages((prev) => [...prev, data.newMessage]);
       } else {
@@ -79,7 +92,6 @@ export const ChatProvider = ({ children }) => {
     selectedUser,
     unseenMessages,
     getUsers,
-    
     setSelectedUser,
     setUnseenMessages,
     getMessages,
