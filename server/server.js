@@ -60,9 +60,11 @@ app.use((req, res, next) => {
   next();
 });
 
-if (process.env.NODE_ENV !== "production") {
-  const PORT = process.env.PORT || 5000;
-  server.listen(PORT, () => console.log(`server is running on port ${PORT}`));
-}
+// --- FIX IS HERE ---
+// Start the server in all environments. Railway provides the PORT.
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server is running and listening on port ${PORT}`);
+});
 
 export default server;
