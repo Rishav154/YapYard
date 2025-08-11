@@ -23,13 +23,28 @@ export const userSocketMap = {};
 
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
-  console.log("user connected", userId);
+  console.log("A user connected:", userId);
   if (userId) userSocketMap[userId] = socket.id;
+
+  // Send the updated list of online users to all clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+  // --- THIS IS THE KEY REAL-TIME LOGIC ---
+  // Listen for a "sendMessage" event from a client
+  socket.on("sendMessage", (message) => {
+    const { receiverId, ...messageData } = message;
+    const receiverSocketId = userSocketMap[receiverId];
+
+    if (receiverSocketId) {
+      // If the receiver is online, send the "newMessage" event to them
+      io.to(receiverSocketId).emit("newMessage", messageData);
+    }
+  });
+
   socket.on("disconnect", () => {
-    console.log("user disconnected", userId);
+    console.log("User disconnected:", userId);
     delete userSocketMap[userId];
+    // Send the updated list of online users to all clients
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
@@ -50,13 +65,9 @@ app.use("/api/status", (req, res) => res.send("server is live"));
 app.use("/api/messages", messageRouter);
 app.use("/api/auth", userRouter);
 
+// Logging middleware
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.path}`);
-  next();
-});
-
-app.use((req, res, next) => {
-  console.log(`Incoming Request: ${req.method} ${req.url}`);
   next();
 });
 
@@ -65,5 +76,3 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server is running and listening on port ${PORT}`);
 });
-
-// The 'export default server;' line has been removed.
