@@ -9,7 +9,8 @@ export const ChatProvider = ({ children }) => {
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [unseenMessages, setUnseenMessages] = useState({});
-    const { socket, axios } = useContext(AuthContext);
+    // --- Get user and socket from AuthContext ---
+    const { user: currentUser, socket, axios } = useContext(AuthContext);
 
     // getUsers function remains the same...
     const getUsers = async () => {
@@ -36,51 +37,53 @@ export const ChatProvider = ({ children }) => {
         }
     };
 
-    // --- THIS FUNCTION IS NOW CORRECTED ---
+    // --- sendMessage function only needs to emit the event ---
     const sendMessage = async (messageData) => {
         if (!socket) {
             toast.error("Socket not connected.");
             return;
         }
-
-        // The ONLY responsibility of this function now is to emit the event.
-        // The server will save the message and broadcast it back to update the UI.
+        // The server now handles saving the message.
+        // We only need to tell the server who the receiver is.
         socket.emit("sendMessage", {
             ...messageData,
             receiverId: selectedUser._id,
         });
     };
 
-    // subscribeToMessages function remains the same...
-    const subscribeToMessages = () => {
+    useEffect(() => {
         if (!socket) return;
-        socket.on("newMessage", (newMessage) => {
-            // This now handles messages for BOTH the sender and receiver
-            setMessages((prev) => [...prev, newMessage]);
 
-            if (selectedUser && newMessage.sender._id === selectedUser._id) {
-                // Logic for when the receiver has the chat open
-                newMessage.seen = true;
-                axios.put(`/api/messages/mark/${newMessage._id}`);
-            } else if (newMessage.senderId !== socket.id) { 
-                // Logic for unseen messages when chat is not open
+        // --- CORRECTED "newMessage" LISTENER ---
+        const handleNewMessage = (newMessage) => {
+            // Check if the message belongs to the currently open chat
+            if (selectedUser && newMessage.senderId === selectedUser._id) {
+                // If chat is open, add message to view and mark as seen
+                setMessages((prev) => [...prev, newMessage]);
+                // Optionally, inform the server it's been seen immediately
+                axios.put(`/api/messages/mark/${newMessage._id}`).catch(err => console.error("Failed to mark message as seen", err));
+
+            } else if (newMessage.senderId !== currentUser._id) {
+                // If chat is NOT open and message is from someone else, increment unseen count
                 setUnseenMessages((prev) => ({
                     ...prev,
                     [newMessage.senderId]: (prev[newMessage.senderId] || 0) + 1,
                 }));
+                toast.info(`New message from another user!`);
+            } else {
+                // This is our own message that we sent, add it to the UI
+                setMessages((prev) => [...prev, newMessage]);
             }
-        });
-    };
-    
-    // unsubscribeFromMessages function remains the same...
-    const unsubscribeFromMessages = () => {
-        if (socket) socket.off("newMessage");
-    };
+        };
 
-    useEffect(() => {
-        subscribeToMessages();
-        return () => unsubscribeFromMessages();
-    }, [socket, selectedUser]);
+        socket.on("newMessage", handleNewMessage);
+
+        // Clean up the listener on component unmount
+        return () => {
+            socket.off("newMessage", handleNewMessage);
+        };
+    }, [socket, selectedUser, currentUser, axios]);
+
 
     const value = {
         messages,
@@ -92,6 +95,7 @@ export const ChatProvider = ({ children }) => {
         setUnseenMessages,
         getMessages,
         sendMessage,
+        setMessages, // Export setMessages to clear chat when user is deselected
     };
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
