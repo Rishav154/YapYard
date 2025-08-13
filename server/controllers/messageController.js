@@ -20,7 +20,7 @@ export const handleNewMessage = async (messageData) => {
         text,
         image: imageUrl,
     });
-    
+
     await newMessage.save();
 
     // We populate the sender's details to send the complete data to clients
@@ -82,7 +82,7 @@ export const getMessages = async (req, res) => {
                 { senderId: selectedUserId, receiverId: myId },
             ],
         }).populate("senderId", "username profilePic"); // Populate sender info here too
-        
+
         await Message.updateMany(
             { senderId: selectedUserId, receiverId: myId, seen: false },
             { seen: true }

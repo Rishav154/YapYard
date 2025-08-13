@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { AuthContext } from "./AuthContext";
 import { toast } from "react-toastify";
 
@@ -9,11 +9,11 @@ export const ChatProvider = ({ children }) => {
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [unseenMessages, setUnseenMessages] = useState({});
-    // --- Get user and socket from AuthContext ---
-    const { user: currentUser, socket, axios } = useContext(AuthContext);
 
-    // getUsers function remains the same...
-    const getUsers = async () => {
+    // --- FIX: Correctly destructure `authUser` from context ---
+    const { authUser: currentUser, socket, axios } = useContext(AuthContext);
+
+    const getUsers = useCallback(async () => {
         try {
             const { data } = await axios.get("/api/messages/users");
             if (data.success) {
@@ -23,10 +23,10 @@ export const ChatProvider = ({ children }) => {
         } catch (error) {
             toast.error(error.message);
         }
-    };
+    }, [axios]);
 
-    // getMessages function remains the same...
-    const getMessages = async (userId) => {
+    // --- FIX: Wrap functions in `useCallback` to prevent unnecessary re-renders ---
+    const getMessages = useCallback(async (userId) => {
         try {
             const { data } = await axios.get(`/api/messages/${userId}`);
             if (data.success) {
@@ -35,39 +35,36 @@ export const ChatProvider = ({ children }) => {
         } catch (error) {
             toast.error(error.message);
         }
-    };
+    }, [axios]);
 
-    // --- sendMessage function only needs to emit the event ---
-    const sendMessage = async (messageData) => {
+    const sendMessage = useCallback(async (messageData) => {
         if (!socket) {
             toast.error("Socket not connected.");
             return;
         }
-        // The server now handles saving the message.
-        // We only need to tell the server who the receiver is.
         socket.emit("sendMessage", {
             ...messageData,
-            receiverId: selectedUser._id,
+            receiverId: selectedUser?._id,
         });
-    };
+    }, [socket, selectedUser]);
 
     useEffect(() => {
-        if (!socket) return;
+        if (!socket || !currentUser) return; // Added safety check for currentUser
 
-        // --- CORRECTED "newMessage" LISTENER ---
         const handleNewMessage = (newMessage) => {
+            // --- FIX: Compare sender ID using the `_id` property from the populated object ---
+            const senderId = newMessage.senderId._id || newMessage.senderId;
+
             // Check if the message belongs to the currently open chat
-            if (selectedUser && newMessage.senderId === selectedUser._id) {
-                // If chat is open, add message to view and mark as seen
+            if (selectedUser && senderId === selectedUser._id) {
                 setMessages((prev) => [...prev, newMessage]);
-                // Optionally, inform the server it's been seen immediately
                 axios.put(`/api/messages/mark/${newMessage._id}`).catch(err => console.error("Failed to mark message as seen", err));
 
-            } else if (newMessage.senderId !== currentUser._id) {
+            } else if (senderId !== currentUser._id) {
                 // If chat is NOT open and message is from someone else, increment unseen count
                 setUnseenMessages((prev) => ({
                     ...prev,
-                    [newMessage.senderId]: (prev[newMessage.senderId] || 0) + 1,
+                    [senderId]: (prev[senderId] || 0) + 1,
                 }));
                 toast.info(`New message from another user!`);
             } else {
@@ -78,11 +75,10 @@ export const ChatProvider = ({ children }) => {
 
         socket.on("newMessage", handleNewMessage);
 
-        // Clean up the listener on component unmount
         return () => {
             socket.off("newMessage", handleNewMessage);
         };
-    }, [socket, selectedUser, currentUser, axios]);
+    }, [socket, selectedUser, currentUser, axios, getMessages]);
 
 
     const value = {
@@ -95,7 +91,7 @@ export const ChatProvider = ({ children }) => {
         setUnseenMessages,
         getMessages,
         sendMessage,
-        setMessages, // Export setMessages to clear chat when user is deselected
+        setMessages,
     };
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

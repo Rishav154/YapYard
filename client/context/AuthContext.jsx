@@ -19,7 +19,6 @@ export const AuthProvider = ({children}) =>{
     const [socket, setSocket] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // check if user is authticated and if so set the usser datdd and connect the socket
 
     const checkAuth = async () =>{
         try {
@@ -30,9 +29,6 @@ export const AuthProvider = ({children}) =>{
             }
         } catch (error) {
             toast.error(error.message)
-            // This is expected if the user isn't logged in, so we won't show a toast.
-            //setAuthUser(null);
-            //console.error("Auth check failed (expected on logout):", error.message);
         }
     }
 
@@ -84,7 +80,7 @@ export const AuthProvider = ({children}) =>{
                 toast.success("Profile updated successfully");
             }
         } catch (error) {
-            
+
             toast.error(error.message);
         }
     }
@@ -104,7 +100,7 @@ export const AuthProvider = ({children}) =>{
 
         newSocket.on("getOnlineUsers", (userIds)=>{
             setOnlineUsers(userIds);
-       
+
         })
     }
 
@@ -132,7 +128,7 @@ export const AuthProvider = ({children}) =>{
         logout,
         updateProfile,
         isLoading,
-        
+
     }
     return(
         <AuthContext.Provider value={value}>

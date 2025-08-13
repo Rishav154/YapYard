@@ -58,7 +58,6 @@ export const login = async (req,res)=>{
     }
 }
 
-//controller to check if user is authenticated
 export const checkAuth = async (req,res)=>{
     res.json({success: true, userData: req.user})
 
@@ -78,7 +77,7 @@ export const updateProfile = async (req,res)=>{
             const upload = await cloudinary.uploader.upload(profilePic);
             updatedUser = await User.findByIdAndUpdate(userId, { profilePic: upload.secure_url, bio, fullName}, {new: true});
         }
-        res.json({success: true, user: updatedUser})
+        res.json({success: true, userData: updatedUser})
     
     }
 

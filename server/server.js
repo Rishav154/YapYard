@@ -14,7 +14,7 @@ const server = http.createServer(app);
 
 export const io = new Server(server, {
   cors: {
-    origin: "https://yap-yard-frontend.vercel.app", // Your frontend URL
+    origin: "*",
     credentials: true,
   },
 });
@@ -67,7 +67,7 @@ await connectDB();
 app.use(express.json({ limit: "4mb" }));
 app.use(
   cors({
-    origin: "https://yap-yard-frontend.vercel.app", // Your frontend URL
+    origin: "*",
     credentials: true,
   })
 );
