@@ -7,9 +7,8 @@ import { ChatContext } from '../../context/ChatContext';
 const HomePage = () => {
     const { selectedUser } = useContext(ChatContext);
     return (
-        //  Updated background to use your new image and be centered
-        <div className="bg-[url('/bgImageHome.svg')] bg-cover bg-center w-full h-screen sm:px-[15%] sm:py-[5%]">
-            {/* Updated the main container for a better glass effect */}
+        // The only change is on this line: added p-3
+        <div className="bg-[url('/bgImageHome.svg')] bg-cover bg-center w-full h-screen p-3 sm:px-[15%] sm:py-[5%]">
             <div
                 className={`bg-black/30 backdrop-blur-xl border border-white/20
          rounded-3xl overflow-hidden h-full grid grid-cols-1 relative ${

@@ -9,8 +9,8 @@ export const ChatProvider = ({ children }) => {
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [unseenMessages, setUnseenMessages] = useState({});
+    const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false); // State for mobile right sidebar
 
-    // --- FIX: Correctly destructure `authUser` from context ---
     const { authUser: currentUser, socket, axios } = useContext(AuthContext);
 
     const getUsers = useCallback(async () => {
@@ -25,7 +25,6 @@ export const ChatProvider = ({ children }) => {
         }
     }, [axios]);
 
-    // --- FIX: Wrap functions in `useCallback` to prevent unnecessary re-renders ---
     const getMessages = useCallback(async (userId) => {
         try {
             const { data } = await axios.get(`/api/messages/${userId}`);
@@ -49,26 +48,21 @@ export const ChatProvider = ({ children }) => {
     }, [socket, selectedUser]);
 
     useEffect(() => {
-        if (!socket || !currentUser) return; // Added safety check for currentUser
+        if (!socket || !currentUser) return;
 
         const handleNewMessage = (newMessage) => {
-            // --- FIX: Compare sender ID using the `_id` property from the populated object ---
             const senderId = newMessage.senderId._id || newMessage.senderId;
 
-            // Check if the message belongs to the currently open chat
             if (selectedUser && senderId === selectedUser._id) {
                 setMessages((prev) => [...prev, newMessage]);
                 axios.put(`/api/messages/mark/${newMessage._id}`).catch(err => console.error("Failed to mark message as seen", err));
-
             } else if (senderId !== currentUser._id) {
-                // If chat is NOT open and message is from someone else, increment unseen count
                 setUnseenMessages((prev) => ({
                     ...prev,
                     [senderId]: (prev[senderId] || 0) + 1,
                 }));
                 toast.info(`New message from another user!`);
             } else {
-                // This is our own message that we sent, add it to the UI
                 setMessages((prev) => [...prev, newMessage]);
             }
         };
@@ -86,6 +80,8 @@ export const ChatProvider = ({ children }) => {
         users,
         selectedUser,
         unseenMessages,
+        isRightSidebarOpen, // Export new state
+        setIsRightSidebarOpen, // Export new setter
         getUsers,
         setSelectedUser,
         setUnseenMessages,
