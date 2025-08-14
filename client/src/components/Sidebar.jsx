@@ -13,7 +13,7 @@ const Sidebar = () => {
         unseenMessages,
         setUnseenMessages,
     } = useContext(ChatContext);
-    const { logout, onlineUsers } = useContext(AuthContext);
+    const { logout, onlineUsers, authUser } = useContext(AuthContext);
 
     const [input, setinput] = useState(false);
     const navigate = useNavigate();
@@ -44,7 +44,7 @@ const Sidebar = () => {
                             className="max-h-5 cursor-pointer"
                         />
                         {/* Updated menu style */}
-                        <div className="absolute top-full right-0 z-20 w-32 p-4 rounded-md bg-gray-900/80 backdrop-blur-lg border border-white/10 text-gray-100 hidden group-hover:block">
+                        <div className="absolute top-full right-0 z-20 w-32 p-4 rounded-md bg-violet-700/40 backdrop-blur-lg border border-white/10 text-gray-100 hidden group-hover:block">
                             <p
                                 onClick={() => navigate('/profile')}
                                 className="cursor-pointer text-sm w-full text-left bg-transparent border-none p-0"

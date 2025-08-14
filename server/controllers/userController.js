@@ -3,7 +3,14 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../lib/utils.js";
 import cloudinary from "../lib/cloudinary.js";
+import { OAuth2Client } from "google-auth-library";
 
+
+const oAuth2Client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    'postmessage'
+);
 
 export const signup = async (req,res)=> {
     const{ fullName, email, password, bio} = req.body;
@@ -33,8 +40,6 @@ export const signup = async (req,res)=> {
      
 }
 
-//controller to login user
-
 export const login = async (req,res)=>{
     try{
         const {email, password} = req.body;
@@ -58,12 +63,72 @@ export const login = async (req,res)=>{
     }
 }
 
+export const googleAuthCallback = async (req, res) => {
+    const { code } = req.body;
+
+    try {
+        // Exchange authorization code for tokens
+        const { tokens } = await oAuth2Client.getToken(code);
+        const { id_token } = tokens;
+
+        // Verify the ID token and get user info
+        const ticket = await oAuth2Client.verifyIdToken({
+            idToken: id_token,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const payload = ticket.getPayload();
+        const { sub: googleId, email, name: fullName, picture: googleProfilePicUrl } = payload; // Renamed for clarity
+
+        // Find or create the user in your database
+        let user = await User.findOne({ googleId });
+
+        if (!user) {
+            user = await User.findOne({ email });
+            if (user) {
+                // Existing user is linking their Google account
+                user.googleId = googleId;
+                // Only update the profile pic if they don't already have one
+                if (!user.profilePic && googleProfilePicUrl) {
+                    const upload = await cloudinary.uploader.upload(googleProfilePicUrl); // ✨ FIX: Upload Google URL to Cloudinary
+                    user.profilePic = upload.secure_url;
+                }
+            } else {
+                // This is a brand new user signing up with Google
+                let newProfilePicUrl = '';
+                if (googleProfilePicUrl) {
+                    const upload = await cloudinary.uploader.upload(googleProfilePicUrl); // ✨ FIX: Upload Google URL to Cloudinary
+                    newProfilePicUrl = upload.secure_url;
+                }
+                user = new User({
+                    googleId,
+                    email,
+                    fullName,
+                    profilePic: newProfilePicUrl, // ✨ FIX: Save the new Cloudinary URL
+                });
+            }
+            await user.save();
+        }
+
+        const token = generateToken(user._id);
+
+        res.status(200).json({
+            success: true,
+            message: "Google authentication successful",
+            token,
+            userData: user,
+        });
+
+    } catch (error) {
+        console.error("Error during Google OAuth callback:", error);
+        res.status(500).json({ success: false, message: "Authentication failed" });
+    }
+};
+
 export const checkAuth = async (req,res)=>{
     res.json({success: true, userData: req.user})
-
 }
 
-//controller to update user profile
 export const updateProfile = async (req,res)=>{
     try {
         const{profilePic, bio, fullName} = req.body;

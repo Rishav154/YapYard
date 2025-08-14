@@ -58,8 +58,20 @@ export const AuthProvider = ({children}) =>{
         }
     }
 
-    //logout fuction to handle user logout and socket disconnection
+    const handleGoogleLoginSuccess = (data) => {
+        if (data.success) {
+            setAuthUser(data.userData);
+            connectSocket(data.userData);
+            axios.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+            setToken(data.token);
+            localStorage.setItem("token", data.token);
+            toast.success(data.message);
+        } else {
+            toast.error(data.message);
+        }
+    };
 
+    //logout fuction to handle user logout and socket disconnection
     const logout = async () =>{
         localStorage.removeItem("token");
         setToken(null);
@@ -125,6 +137,7 @@ export const AuthProvider = ({children}) =>{
         onlineUsers,
         socket,
         login,
+        handleGoogleLoginSuccess,
         logout,
         updateProfile,
         isLoading,
